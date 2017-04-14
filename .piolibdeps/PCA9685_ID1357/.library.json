@@ -1,0 +1,37 @@
+{
+    "name": "PCA9685", 
+    "repository": {
+        "url": "https://github.com/RobTillaart/Arduino.git", 
+        "type": "git"
+    }, 
+    "platforms": [
+        "atmelavr", 
+        "atmelsam", 
+        "espressif8266", 
+        "intel_arc32", 
+        "microchippic32", 
+        "nordicnrf51", 
+        "teensy", 
+        "timsp430"
+    ], 
+    "frameworks": [
+        "arduino"
+    ], 
+    "version": "8a94bc3acc", 
+    "export": {
+        "include": "libraries/PCA9685"
+    }, 
+    "authors": [
+        {
+            "maintainer": true, 
+            "name": "Rob Tillaart", 
+            "url": null, 
+            "email": "Rob.Tillaart@gmail.com"
+        }
+    ], 
+    "keywords": [
+        "i2c pca9685 pwm"
+    ], 
+    "id": 1357, 
+    "description": "Library for PCA9685."
+}
