@@ -1,0 +1,20 @@
+From LETSCONTROLIT forum:
+
+1.
+
+extern "C" {
+#include "user_interface.h"
+}
+
+wifi_set_phy_mode(PHY_MODE_11G);
+system_phy_set_max_tpw(42);
+
+2.
+
+100uF Cap added on the power pins of the board
+
+3.
+
+You simple need to solder a 220nF ceramic capacitor across pin12 und pin13
+of the chip (BISS0001) so that the high-frequency interference coming from
+the ESP8266 don't influece the gain stage anymore. (chunter1 on letscontrolit)
