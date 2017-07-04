@@ -15,7 +15,16 @@ extern "C" {
 #include "user_interface.h"
 }
 
-String ssid,password,mqtt_server,hostName;
+#include <SPI.h>
+#include <Ethernet.h>
+
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
+IPAddress ip(192, 168, 1, 177);
+EthernetServer server(80);
+
+String ssid,password,mqtt_server,hostName_l;
 
 byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 
@@ -30,7 +39,7 @@ TM1637Display display(DISP_CLK, DISP_DIO);
 
 uint16_t prev_sec,time_disp;
 uint8_t data[3];
-bool Ir_Trig, Rad_Trig,MQTT_On;
+bool Ir_Trig, Rad_Trig,MQTT_On,st_Sent;
 String pubString;
 time_t lastTrig;
 
@@ -101,11 +110,11 @@ void setup_FS()
   ssid = f.readStringUntil('\n');
   password = f.readStringUntil('\n');
   mqtt_server = f.readStringUntil('\n');
-  hostName = f.readStringUntil('\n');
+  hostName_l = f.readStringUntil('\n');
   ssid.remove((ssid.length()-1));
   password.remove((password.length()-1));
   mqtt_server.remove((mqtt_server.length()-1));
-  hostName.remove((hostName.length()-1));
+  hostName_l.remove((hostName_l.length()-1));
   /////////// NEED TO RUN ONLY ONCE ///////////
     //Serial.println("Spiffs formating...");
     //SPIFFS.format();
@@ -123,11 +132,11 @@ void callback(char* topic, byte* payload, unsigned int length)
 void setup_wifi()
 {
   wifi_set_phy_mode(PHY_MODE_11G);
-  system_phy_set_max_tpw(42);
+  system_phy_set_max_tpw(21);
   WiFi.softAPdisconnect(true);
   WiFi.disconnect();
   WiFi.mode(WIFI_STA);
-  WiFi.hostname(hostName);
+  WiFi.hostname(hostName_l);
   WiFi.begin(ssid.c_str(), password.c_str());
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("Connecting to: "); Serial.println(ssid.c_str());}
   Serial.println("Wifi Connected!");
@@ -164,7 +173,7 @@ void setup_OTA()
       else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
       else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
-    ArduinoOTA.setHostname(hostName.c_str());
+    ArduinoOTA.setHostname(hostName_l.c_str());
     ArduinoOTA.begin();
     Serial.println("Ready");
     Serial.print("IP address: ");
@@ -179,10 +188,10 @@ void MQTT_Connect()
   // Subsriptions come here
   while (!client.connected())
    {
-     if (client.connect(hostName.c_str()))
+     if (client.connect(hostName_l.c_str()))
      {
        Serial.println("MQTT Online!");
-       pubString = hostName + "status/online";
+       pubString = hostName_l + "status/online";
        client.publish(pubString.c_str(),"1");
      } else
    {
@@ -226,7 +235,7 @@ void Check_Motion(bool sendMQTT)
       {
         if (sendMQTT)
         {
-          client.publish((hostName + "/status/mot").c_str(),"3");
+          client.publish((hostName_l + "/status/mot").c_str(),"3");
           MQTT_On = 1;
           lastTrig = now();
           //Serial.println(elapsedSecsToday(now()));
@@ -237,7 +246,7 @@ void Check_Motion(bool sendMQTT)
       {
         if (sendMQTT)
         {
-          client.publish((hostName + "/status/mot").c_str(),"1");
+          client.publish((hostName_l + "/status/mot").c_str(),"1");
           MQTT_On = 1;
           lastTrig = now();
           //Serial.println(elapsedSecsToday(now()));
@@ -258,7 +267,7 @@ void Check_Motion(bool sendMQTT)
       {
         if (sendMQTT)
         {
-          client.publish((hostName + "/status/mot").c_str(),"3");
+          client.publish((hostName_l + "/status/mot").c_str(),"3");
           MQTT_On = 1;
           lastTrig = now();
           //Serial.println(elapsedSecsToday(now()));
@@ -269,7 +278,7 @@ void Check_Motion(bool sendMQTT)
       {
         if (sendMQTT)
         {
-          client.publish((hostName + "/status/mot").c_str(),"2");
+          client.publish((hostName_l + "/status/mot").c_str(),"2");
           MQTT_On = 1;
           lastTrig = now();
           //Serial.println(elapsedSecsToday(now()));
@@ -287,14 +296,16 @@ void Check_Motion(bool sendMQTT)
     {
       if ((now() - lastTrig) > MOT_DELAY)
       {
-        client.publish((hostName + "/status/mot").c_str(),"0");
+        client.publish((hostName_l + "/status/mot").c_str(),"0");
         MQTT_On = 0;
       }
     }
-    else if (minute()%2)        // Off Status every 2 minutes
+    else if (minute()%2 && !st_Sent)        // Off Status every 2 minutes
     {
-        client.publish((hostName + "/status/mot").c_str(),"0");
+        client.publish((hostName_l + "/status/mot").c_str(),"0");
+        st_Sent = 1;
     }
+    if (!(minute()%2)) st_Sent = 0;
   }
   client.loop();
 }
@@ -331,6 +342,18 @@ void setup()
 
 void loop()
 {
+  while (!client.connected())
+   {
+     if (client.connect(hostName_l.c_str()))
+      {
+        Serial.println("MQTT Online!");
+        pubString = hostName_l + "status/online";
+        client.publish(pubString.c_str(),"1");
+      } else
+      {
+        delay(1000);
+      }
+    }
     Time_Disp();
     Check_Motion(USE_MQTT);
 
